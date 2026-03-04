@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Skynet — Personal AI</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+:root {
+  --bg:#0a0a0a; --surface:#111; --surface2:#1a1a1a; --border:#222;
+  --accent:#e8d5b0; --accent-dim:rgba(232,213,176,0.1); --text:#e0ddd8; --muted:#555;
+}
+.light-mode {
+  --bg:#f5f0e8; --surface:#fff; --surface2:#f0ebe0; --border:#ddd;
+  --accent:#7a5c2e; --accent-dim:rgba(122,92,46,0.1); --text:#2a2010; --muted:#999;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;height:100vh;display:flex;flex-direction:column;overflow:hidden;transition:background 0.3s,color 0.3s;}
+
+/* LOCK SCREEN */
+#lockScreen{position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+#lockScreen.hidden{display:none;}
+.lock-orb{width:80px;height:80px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e8d5b0,#6b5332);box-shadow:0 0 40px rgba(232,213,176,0.3);animation:pulse 3s infinite;}
+.lock-title{font-family:'Instrument Serif',serif;font-size:2rem;color:var(--accent);}
+.lock-sub{color:var(--muted);font-size:13px;}
+.lock-input{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 18px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:16px;outline:none;text-align:center;letter-spacing:4px;width:220px;}
+.lock-input:focus{border-color:rgba(232,213,176,0.4);}
+.lock-btn{background:var(--accent);color:#000;border:none;border-radius:8px;padding:10px 28px;font-family:'DM Mono',monospace;font-size:12px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+.lock-error{color:#ff6b6b;font-size:12px;display:none;}
+
+/* HEADER */
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer;}
+.logo-orb{width:28px;height:28px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e8d5b0,#8a7355);box-shadow:0 0 16px rgba(232,213,176,0.3);animation:pulse 3s infinite;}
+@keyframes pulse{0%,100%{box-shadow:0 0 16px rgba(232,213,176,0.3);}50%{box-shadow:0 0 30px rgba(232,213,176,0.5);}}
+.logo-name{font-family:'Instrument Serif',serif;font-size:1.15rem;color:var(--accent);}
+.header-right{display:flex;align-items:center;gap:10px;}
+.hbtn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:5px 12px;font-size:12px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;}
+.hbtn:hover{color:var(--text);border-color:var(--muted);}
+.hbtn.active{color:var(--accent);border-color:rgba(232,213,176,0.35);background:var(--accent-dim);}
+.status-dot{width:6px;height:6px;background:#4caf7d;border-radius:50%;animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+
+/* NAV TABS */
+.nav{display:flex;gap:2px;padding:10px 24px;border-bottom:1px solid var(--border);background:var(--surface);flex-shrink:0;overflow-x:auto;}
+.nav-btn{background:none;border:1px solid transparent;color:var(--muted);font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:6px;cursor:pointer;white-space:nowrap;transition:all 0.2s;}
+.nav-btn:hover{color:var(--text);}
+.nav-btn.active{color:var(--accent);border-color:rgba(232,213,176,0.3);background:var(--accent-dim);}
+
+/* MAIN CONTENT */
+#mainContent{flex:1;display:flex;overflow:hidden;}
+
+/* SESSIONS SIDEBAR */
+#sidebar{width:200px;border-right:1px solid var(--border);background:var(--surface);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+#sidebar.hidden{display:none;}
+.sidebar-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.sidebar-head span{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--muted);text-transform:uppercase;}
+.new-session-btn{background:var(--accent-dim);border:1px solid rgba(232,213,176,0.2);color:var(--accent);border-radius:5px;padding:3px 8px;font-size:11px;cursor:pointer;}
+#sessionList{flex:1;overflow-y:auto;padding:8px;}
+.session-item{padding:8px 10px;border-radius:7px;cursor:pointer;font-size:12px;color:var(--muted);transition:all 0.15s;border:1px solid transparent;margin-bottom:3px;display:flex;align-items:center;justify-content:space-between;gap:6px;}
+.session-item:hover{background:var(--surface2);color:var(--text);}
+.session-item.active{background:var(--accent-dim);color:var(--accent);border-color:rgba(232,213,176,0.2);}
+.session-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.del-session{opacity:0;font-size:14px;line-height:1;color:var(--muted);}
+.session-item:hover .del-session{opacity:1;}
+
+/* PANELS */
+.panel{flex:1;display:none;flex-direction:column;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* CHAT */
+#chatMessages{flex:1;overflow-y:auto;padding:24px;display:flex;flex-direction:column;gap:18px;}
+#chatMessages::-webkit-scrollbar{width:3px;}
+#chatMessages::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:14px;text-align:center;animation:fadeUp 0.5s ease;padding:40px 20px;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px);}to{opacity:1;transform:translateY(0);}}
+.welcome-orb{width:60px;height:60px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#e8d5b0,#6b5332);box-shadow:0 0 40px rgba(232,213,176,0.2);}
+.welcome h2{font-family:'Instrument Serif',serif;font-size:1.9rem;color:var(--accent);font-weight:400;}
+.welcome p{color:var(--muted);font-size:13.5px;max-width:340px;line-height:1.6;}
+.suggestions{display:flex;flex-wrap:wrap;gap:7px;justify-content:center;margin-top:6px;}
+.suggestion{background:var(--surface2);border:1px solid var(--border);color:#888;padding:7px 14px;border-radius:18px;font-size:12.5px;cursor:pointer;transition:all 0.2s;}
+.suggestion:hover{border-color:rgba(232,213,176,0.3);color:var(--accent);background:var(--accent-dim);}
+
+.msg{display:flex;gap:12px;animation:fadeUp 0.25s ease;max-width:740px;width:100%;margin:0 auto;}
+.msg.user{flex-direction:row-reverse;}
+.avatar{width:28px;height:28px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:12px;margin-top:2px;}
+.avatar.ai{background:radial-gradient(circle at 35% 35%,#e8d5b0,#8a7355);color:#000;font-family:'Instrument Serif',serif;}
+.avatar.user-av{background:var(--surface2);border:1px solid var(--border);color:var(--muted);}
+.bubble{padding:12px 16px;border-radius:14px;font-size:14px;line-height:1.7;max-width:calc(100% - 42px);}
+.msg.ai .bubble{background:var(--surface);border:1px solid var(--border);border-top-left-radius:3px;}
+.msg.user .bubble{background:var(--accent-dim);border:1px solid rgba(232,213,176,0.2);border-top-right-radius:3px;color:var(--accent);}
+.bubble strong{color:var(--accent);}
+.bubble code{font-family:'DM Mono',monospace;background:var(--surface2);padding:1px 5px;border-radius:3px;font-size:12.5px;}
+.bubble pre{background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:12px;overflow-x:auto;margin-top:8px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6;}
+.bubble img{max-width:100%;border-radius:10px;margin-top:8px;border:1px solid var(--border);}
+.thinking{display:flex;align-items:center;gap:5px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:14px;border-top-left-radius:3px;width:fit-content;}
+.thinking span{width:5px;height:5px;background:var(--accent);border-radius:50%;animation:think 1.2s infinite;}
+.thinking span:nth-child(2){animation-delay:0.2s;}
+.thinking span:nth-child(3){animation-delay:0.4s;}
+@keyframes think{0%,80%,100%{opacity:0.2;transform:scale(0.8);}40%{opacity:1;transform:scale(1);}}
+
+/* INPUT */
+.input-bar{padding:12px 24px 16px;border-top:1px solid var(--border);background:var(--surface);flex-shrink:0;}
+.input-tools{display:flex;gap:6px;margin-bottom:8px;max-width:740px;margin-left:auto;margin-right:auto;}
+.tool-toggle{background:none;border:1px solid var(--border);color:var(--muted);border-radius:6px;padding:3px 10px;font-size:11px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;}
+.tool-toggle.on{color:var(--accent);border-color:rgba(232,213,176,0.35);background:var(--accent-dim);}
+.input-wrap{display:flex;align-items:flex-end;gap:8px;background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:8px 12px;max-width:740px;margin:0 auto;transition:border-color 0.2s;}
+.input-wrap:focus-within{border-color:rgba(232,213,176,0.35);}
+#userInput{flex:1;background:none;border:none;outline:none;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.5;resize:none;max-height:120px;overflow-y:auto;}
+#userInput::placeholder{color:var(--muted);}
+.input-actions{display:flex;gap:5px;flex-shrink:0;}
+.icon-btn{width:30px;height:30px;border-radius:7px;border:1px solid var(--border);background:none;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:14px;transition:all 0.2s;}
+.icon-btn:hover{color:var(--text);border-color:var(--muted);}
+.icon-btn.recording{color:#ff6b6b;border-color:#ff6b6b;animation:recPulse 1s infinite;}
+@keyframes recPulse{0%,100%{box-shadow:0 0 0 0 rgba(255,107,107,0.3);}50%{box-shadow:0 0 0 5px rgba(255,107,107,0);}}
+#sendBtn{width:30px;height:30px;background:var(--accent);border:none;border-radius:7px;cursor:pointer;color:#000;font-size:15px;display:flex;align-items:center;justify-content:center;transition:opacity 0.2s;}
+#sendBtn:hover{opacity:0.8;}
+#sendBtn:disabled{opacity:0.3;cursor:not-allowed;}
+
+/* TASK PANEL */
+#taskPanel{padding:24px;overflow-y:auto;}
+.task-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:18px;max-width:740px;margin-left:auto;margin-right:auto;}
+.task-card h3{font-family:'Instrument Serif',serif;font-size:1.2rem;color:var(--accent);margin-bottom:6px;font-weight:400;}
+.task-card p{color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6;}
+.task-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13.5px;line-height:1.6;resize:vertical;min-height:100px;outline:none;transition:border-color 0.2s;margin-bottom:12px;}
+.task-textarea:focus{border-color:rgba(232,213,176,0.4);}
+.task-textarea::placeholder{color:var(--muted);}
+.run-btn{background:var(--accent);color:#000;border:none;border-radius:7px;padding:9px 20px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.run-btn:hover{opacity:0.85;}
+.run-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.task-result{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;display:none;max-width:740px;margin:0 auto;}
+.task-result.visible{display:block;animation:fadeUp 0.3s ease;}
+.result-label{font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.result-label::after{content:'';flex:1;height:1px;background:var(--border);}
+.result-content{font-size:14px;line-height:1.75;color:var(--text);white-space:pre-wrap;}
+
+/* SETTINGS PANEL */
+#settingsPanel{padding:24px;overflow-y:auto;}
+.settings-section{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;margin-bottom:16px;max-width:700px;margin-left:auto;margin-right:auto;}
+.settings-section h3{font-family:'Instrument Serif',serif;font-size:1.1rem;color:var(--accent);margin-bottom:14px;font-weight:400;}
+.setting-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);gap:12px;}
+.setting-row:last-child{border-bottom:none;}
+.setting-label{font-size:13.5px;color:var(--text);}
+.setting-desc{font-size:11.5px;color:var(--muted);margin-top:2px;}
+.toggle{width:38px;height:20px;background:var(--border);border-radius:10px;cursor:pointer;position:relative;transition:background 0.2s;flex-shrink:0;border:none;}
+.toggle::after{content:'';position:absolute;width:14px;height:14px;background:#fff;border-radius:50%;top:3px;left:3px;transition:left 0.2s;}
+.toggle.on{background:var(--accent);}
+.toggle.on::after{left:21px;}
+.setting-input{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:6px 10px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;outline:none;width:100%;}
+.setting-input:focus{border-color:rgba(232,213,176,0.4);}
+.settings-textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;line-height:1.6;resize:vertical;min-height:80px;outline:none;margin-top:8px;}
+.save-btn{background:var(--accent);color:#000;border:none;border-radius:7px;padding:8px 18px;font-family:'DM Mono',monospace;font-size:11px;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-top:10px;}
+
+/* DEV MODE */
+#devPanel{padding:24px;overflow-y:auto;}
+.dev-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:22px;max-width:700px;margin:0 auto 16px;}
+.dev-card h3{font-family:'Instrument Serif',serif;font-size:1.1rem;color:var(--accent);margin-bottom:6px;font-weight:400;}
+.dev-card p{color:var(--muted);font-size:12.5px;margin-bottom:14px;line-height:1.6;}
+.code-output{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:14px;font-family:'DM Mono',monospace;font-size:12px;line-height:1.6;color:#b8c0cc;white-space:pre-wrap;max-height:300px;overflow-y:auto;display:none;}
+.code-output.visible{display:block;}
+
+/* STICK FIGURE */
+#skynetFigure{position:fixed;bottom:90px;right:20px;z-index:100;display:none;cursor:grab;user-select:none;}
+#skynetFigure.visible{display:block;}
+#figureCanvas{filter:drop-shadow(0 0 8px rgba(232,213,176,0.4));}
+
+/* EXPORT */
+.export-btn{background:none;border:1px solid var(--border);color:var(--muted);border-radius:7px;padding:6px 14px;font-size:12px;cursor:pointer;font-family:'DM Mono',monospace;transition:all 0.2s;}
+.export-btn:hover{color:var(--text);border-color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lockScreen" class="hidden">
+  <div class="lock-orb"></div>
+  <div class="lock-title">Skynet</div>
+  <div class="lock-sub">Enter your password to continue</div>
+  <input type="password" class="lock-input" id="lockInput" placeholder="••••••" onkeydown="if(event.key==='Enter')unlock()"/>
+  <button class="lock-btn" onclick="unlock()">Unlock</button>
+  <div class="lock-error" id="lockError">Incorrect password</div>
+</div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo" onclick="toggleFigure()">
+    <div class="logo-orb"></div>
+    <div class="logo-name">Skynet</div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <button class="hbtn" onclick="toggleSidebar()" id="sidebarBtn">Sessions</button>
+    <button class="hbtn" onclick="toggleDarkMode()" id="themeBtn">☀ Light</button>
+    <button class="hbtn" onclick="lockApp()" id="lockBtn" style="display:none">🔒 Lock</button>
+  </div>
+</header>
+
+<!-- NAV -->
+<div class="nav">
+  <button class="nav-btn active" onclick="showPanel('chat')" id="tab-chat">💬 Chat</button>
+  <button class="nav-btn" onclick="showPanel('task')" id="tab-task">⚡ Task</button>
+  <button class="nav-btn" onclick="showPanel('settings')" id="tab-settings">⚙ Settings</button>
+  <button class="nav-btn" onclick="showPanel('dev')" id="tab-dev">🛠 Dev Mode</button>
+</div>
+
+<div id="mainContent">
+
+  <!-- SIDEBAR -->
+  <div id="sidebar" class="hidden">
+    <div class="sidebar-head">
+      <span>Sessions</span>
+      <button class="new-session-btn" onclick="newSession()">+ New</button>
+    </div>
+    <div id="sessionList"></div>
+  </div>
+
+  <!-- CHAT PANEL -->
+  <div class="panel active" id="chatPanel" style="flex-direction:column;">
+    <div id="chatMessages">
+      <div class="welcome" id="welcome">
+        <div class="welcome-orb"></div>
+        <h2>Hey, I'm Skynet.</h2>
+        <p>Your personal AI. Chat, give tasks, search the web, or generate images.</p>
+        <div class="suggestions">
+          <div class="suggestion" onclick="suggest(this)">What's in the news today?</div>
+          <div class="suggestion" onclick="suggest(this)">Help me write something</div>
+          <div class="suggestion" onclick="suggest(this)">Solve a math problem</div>
+          <div class="suggestion" onclick="suggest(this)">Generate an image for me</div>
+          <div class="suggestion" onclick="suggest(this)">Make me a plan</div>
+        </div>
+      </div>
+    </div>
+    <div class="input-bar">
+      <div class="input-tools">
+        <button class="tool-toggle" id="webSearchToggle" onclick="toggleTool('webSearch')">🔍 Web Search</button>
+        <button class="tool-toggle" id="imageToggle" onclick="toggleTool('image')">🎨 Images</button>
+        <button class="tool-toggle" id="voiceToggle" onclick="toggleTool('voice')">🎤 Voice</button>
+        <button class="export-btn" onclick="exportChat()">↓ Export</button>
+      </div>
+      <div class="input-wrap">
+        <textarea id="userInput" rows="1" placeholder="Message Skynet..." onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <div class="input-actions">
+          <button class="icon-btn" id="micBtn" onclick="toggleVoice()" title="Voice input">🎤</button>
+          <button id="sendBtn" onclick="sendMessage()">↑</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TASK PANEL -->
+  <div class="panel" id="taskPanel">
+    <div style="flex:1;overflow-y:auto;padding:24px;">
+      <div class="task-card" style="max-width:700px;margin:0 auto 18px;">
+        <h3>Autonomous Task Runner</h3>
+        <p>Describe something complex. Skynet will break it into steps and handle each one — research, write, plan, solve — without you doing anything.</p>
+        <textarea class="task-textarea" id="taskInput" placeholder="e.g. Research the top 5 electric cars in 2025, compare them by price and range, then write me a recommendation summary."></textarea>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <button class="run-btn" id="runBtn" onclick="runTask()">▶ Run Task</button>
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;">
+            <input type="checkbox" id="autoWebSearch" checked style="accent-color:var(--accent);"/> Use web search
+          </label>
+        </div>
+      </div>
+      <div class="task-result" id="taskResult" style="max-width:700px;">
+        <div class="result-label">Result</div>
+        <div class="result-content" id="resultContent"></div>
+        <button class="export-btn" style="margin-top:14px;" onclick="exportTask()">↓ Save Result</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS PANEL -->
+  <div class="panel" id="settingsPanel">
+    <div style="flex:1;overflow-y:auto;padding:24px;">
+
+      <div class="settings-section" style="max-width:700px;margin:0 auto 16px;">
+        <h3>Personality & Identity</h3>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
+          <div class="setting-label">AI Name</div>
+          <input class="setting-input" id="aiName" value="Skynet" style="margin-top:6px;max-width:200px;"/>
+        </div>
+        <div class="setting-row" style="flex-direction:column;align-items:flex-start;">
+          <div class="setting-label">Custom Instructions</div>
+          <div class="setting-desc">Tell Skynet how to behave, what to know about you, or how to respond.</div>
+          <textarea class="settings-textarea" id="customInstructions" placeholder="e.g. I'm a high school student. Keep explanations simple. I like bullet points. Always be encouraging."></textarea>
+        </div>
+        <button class="save-btn" onclick="savePersonality()">Save Personality</button>
+      </div>
+
+      <div class="settings-section" style="max-width:700px;margin:0 auto 16px;">
+        <h3>Security</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Password Lock</div>
+            <div class="setting-desc">Require a password to open Skynet</div>
+          </div>
+          <button class="toggle" id="lockToggle" onclick="toggleLock(this)"></button>
+        </div>
+        <div id="passwordSection" style="display:none;margin-top:12px;">
+          <input class="setting-input" type="password" id="newPassword" placeholder="Set password" style="max-width:200px;margin-bottom:8px;"/>
+          <br/>
+          <button class="save-btn" onclick="savePassword()">Set Password</button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="max-width:700px;margin:0 auto 16px;">
+        <h3>Skynet Figure</h3>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Show Stick Figure</div>
+            <div class="setting-desc">Animated Skynet companion on screen</div>
+          </div>
+          <button class="toggle" id="figureToggle" onclick="toggleFigureSetting(this)"></button>
+        </div>
+        <div class="setting-row">
+          <div>
+            <div class="setting-label">Animation Mode</div>
+          </div>
+          <select class="setting-input" id="animMode" style="max-width:160px;" onchange="setAnimMode(this.value)">
+            <option value="idle">Idle</option>
+            <option value="dance">Dance</option>
+            <option value="wave">Wave</option>
+            <option value="think">Think</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="settings-section" style="max-width:700px;margin:0 auto 16px;">
+        <h3>Features</h3>
+        <div class="setting-row">
+          <div><div class="setting-label">Web Search</div><div class="setting-desc">Let Skynet search the internet</div></div>
+          <button class="toggle on" id="webSearchSetting" onclick="this.classList.toggle('on')"></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Image Generation</div><div class="setting-desc">Generate images from text</div></div>
+          <button class="toggle on" id="imageSetting" onclick="this.classList.toggle('on')"></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Voice Input</div><div class="setting-desc">Speak instead of type</div></div>
+          <button class="toggle on" id="voiceSetting" onclick="this.classList.toggle('on')"></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Real-Time Voice Chat</div><div class="setting-desc">Two-way spoken conversation</div></div>
+          <button class="toggle" id="realtimeSetting" onclick="toggleRealtime(this)"></button>
+        </div>
+        <div class="setting-row">
+          <div><div class="setting-label">Math Solver</div><div class="setting-desc">Skynet shows step-by-step math work</div></div>
+          <button class="toggle on" id="mathSetting" onclick="this.classList.toggle('on')"></button>
+        </div>
+      </div>
+
+      <div class="settings-section" style="max-width:700px;margin:0 auto 16px;">
+        <h3>Clear Data</h3>
+        <div class="setting-row">
+          <div><div class="setting-label">Clear All Sessions</div></div>
+          <button class="export-btn" onclick="clearAllSessions()" style="color:#ff6b6b;border-color:#ff6b6b;">Clear</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- DEV MODE PANEL -->
+  <div class="panel" id="devPanel">
+    <div style="flex:1;overflow-y:auto;padding:24px;">
+      <div class="dev-card">
+        <h3>Self-Coding Dev Mode</h3>
+        <p>Describe a feature you want. Skynet will write the code for it and show you exactly where to add it. Copy it into the codebase or paste it here to preview.</p>
+        <textarea class="task-textarea" id="devInput" placeholder="e.g. Add a pomodoro timer widget to the sidebar that tracks focus sessions" style="min-height:80px;"></textarea>
+        <button class="run-btn" id="devBtn" onclick="runDevMode()">⚡ Generate Feature Code</button>
+      </div>
+      <div class="dev-card" id="devOutput" style="display:none;">
+        <div class="result-label" style="font-family:'DM Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:8px;">Generated Code<span style="flex:1;height:1px;background:var(--border);display:block;"></span></div>
+        <div class="code-output visible" id="devCode"></div>
+        <button class="export-btn" style="margin-top:12px;" onclick="copyDevCode()">📋 Copy Code</button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- end mainContent -->
+
+<!-- STICK FIGURE -->
+<div id="skynetFigure">
+  <canvas id="figureCanvas" width="80" height="120"></canvas>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+const state = {
+  sessions: JSON.parse(localStorage.getItem('skynetSessions') || '[]'),
+  currentSession: null,
+  settings: JSON.parse(localStorage.getItem('skynetSettings') || '{}'),
+  tools: { webSearch: false, image: false, voice: false },
+  recording: false,
+  mediaRecorder: null,
+  recognition: null,
+  figureVisible: false,
+  animMode: 'idle',
+  animFrame: 0,
+  locked: false,
+  realtimeMode: false,
+  speaking: false
+};
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+  if (!state.sessions.length) newSession();
+  else { state.currentSession = state.sessions[0]; renderSessions(); }
+  loadSettings();
+  if (state.settings.lockEnabled && state.settings.password) showLock();
+  drawFigure();
+  setInterval(animateFigure, 80);
+}
+
+// ─── LOCK ─────────────────────────────────────────────────
+function showLock() {
+  document.getElementById('lockScreen').classList.remove('hidden');
+  state.locked = true;
+}
+function unlock() {
+  const val = document.getElementById('lockInput').value;
+  if (val === state.settings.password) {
+    document.getElementById('lockScreen').classList.add('hidden');
+    document.getElementById('lockInput').value = '';
+    state.locked = false;
+  } else {
+    document.getElementById('lockError').style.display = 'block';
+    setTimeout(() => document.getElementById('lockError').style.display = 'none', 2000);
+  }
+}
+function lockApp() { if (state.settings.password) showLock(); }
+function toggleLock(btn) {
+  btn.classList.toggle('on');
+  const on = btn.classList.contains('on');
+  document.getElementById('passwordSection').style.display = on ? 'block' : 'none';
+  state.settings.lockEnabled = on;
+  saveSettings();
+  document.getElementById('lockBtn').style.display = on ? 'inline-flex' : 'none';
+}
+function savePassword() {
+  const pw = document.getElementById('newPassword').value;
+  if (pw.length < 3) return alert('Password too short');
+  state.settings.password = pw;
+  saveSettings();
+  alert('Password saved!');
+}
+
+// ─── SESSIONS ─────────────────────────────────────────────
+function newSession() {
+  const session = { id: Date.now(), name: 'New Chat', messages: [] };
+  state.sessions.unshift(session);
+  state.currentSession = session;
+  saveSessions();
+  renderSessions();
+  clearChatUI();
+}
+function switchSession(id) {
+  state.currentSession = state.sessions.find(s => s.id === id);
+  renderSessions();
+  renderChatHistory();
+}
+function deleteSession(id, e) {
+  e.stopPropagation();
+  state.sessions = state.sessions.filter(s => s.id !== id);
+  if (state.currentSession?.id === id) {
+    if (state.sessions.length) state.currentSession = state.sessions[0];
+    else newSession();
+  }
+  saveSessions();
+  renderSessions();
+  renderChatHistory();
+}
+function renderSessions() {
+  const list = document.getElementById('sessionList');
+  list.innerHTML = state.sessions.map(s => `
+    <div class="session-item ${s.id === state.currentSession?.id ? 'active' : ''}" onclick="switchSession(${s.id})">
+      <span class="session-name">${s.name}</span>
+      <span class="del-session" onclick="deleteSession(${s.id},event)">×</span>
+    </div>`).join('');
+}
+function clearChatUI() {
+  document.getElementById('chatMessages').innerHTML = `
+    <div class="welcome" id="welcome">
+      <div class="welcome-orb"></div>
+      <h2>Hey, I'm ${state.settings.aiName || 'Skynet'}.</h2>
+      <p>Your personal AI. Chat, give tasks, search the web, or generate images.</p>
+      <div class="suggestions">
+        <div class="suggestion" onclick="suggest(this)">What's in the news today?</div>
+        <div class="suggestion" onclick="suggest(this)">Help me write something</div>
+        <div class="suggestion" onclick="suggest(this)">Solve a math problem</div>
+        <div class="suggestion" onclick="suggest(this)">Generate an image for me</div>
+      </div>
+    </div>`;
+}
+function renderChatHistory() {
+  clearChatUI();
+  if (!state.currentSession?.messages.length) return;
+  document.getElementById('welcome')?.remove();
+  state.currentSession.messages.forEach(m => appendMsg(m.role === 'user' ? 'user' : 'ai', m.content, false));
+}
+function saveSessions() { localStorage.setItem('skynetSessions', JSON.stringify(state.sessions)); }
+
+// ─── SETTINGS ─────────────────────────────────────────────
+function loadSettings() {
+  const s = state.settings;
+  if (s.aiName) document.getElementById('aiName').value = s.aiName;
+  if (s.customInstructions) document.getElementById('customInstructions').value = s.customInstructions;
+  if (s.lockEnabled) {
+    document.getElementById('lockToggle').classList.add('on');
+    document.getElementById('passwordSection').style.display = 'block';
+    document.getElementById('lockBtn').style.display = 'inline-flex';
+  }
+  if (s.figureVisible) { state.figureVisible = true; document.getElementById('skynetFigure').classList.add('visible'); document.getElementById('figureToggle').classList.add('on'); }
+  if (s.darkMode === false) { document.body.classList.add('light-mode'); document.getElementById('themeBtn').textContent = '🌙 Dark'; }
+}
+function saveSettings() { localStorage.setItem('skynetSettings', JSON.stringify(state.settings)); }
+function savePersonality() {
+  state.settings.aiName = document.getElementById('aiName').value;
+  state.settings.customInstructions = document.getElementById('customInstructions').value;
+  saveSettings();
+  alert('Personality saved!');
+}
+function clearAllSessions() {
+  if (!confirm('Clear all sessions?')) return;
+  state.sessions = [];
+  newSession();
+}
+
+// ─── DARK MODE ────────────────────────────────────────────
+function toggleDarkMode() {
+  const isLight = document.body.classList.toggle('light-mode');
+  document.getElementById('themeBtn').textContent = isLight ? '🌙 Dark' : '☀ Light';
+  state.settings.darkMode = !isLight;
+  saveSettings();
+}
+
+// ─── PANELS ───────────────────────────────────────────────
+function showPanel(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(name + 'Panel').classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('hidden');
+}
+
+// ─── TOOLS ────────────────────────────────────────────────
+function toggleTool(tool) {
+  state.tools[tool] = !state.tools[tool];
+  document.getElementById(tool + 'Toggle').classList.toggle('on', state.tools[tool]);
+}
+
+// ─── CHAT ─────────────────────────────────────────────────
+const API = '/api/chat';
+
+function getSystemPrompt() {
+  const name = state.settings.aiName || 'Skynet';
+  const custom = state.settings.customInstructions || '';
+  return `You are ${name}, a sharp, warm, highly capable personal AI assistant. You are direct and get things done. You speak like a smart friend — natural, confident, occasionally witty. When asked to do a task, you just do it. Format responses cleanly using **bold** for key terms. ${custom ? '\n\nUser instructions: ' + custom : ''}
+  
+If asked to solve math, show step-by-step work clearly.
+If asked to generate an image, respond with: [GENERATE_IMAGE: <detailed description>]
+Keep responses concise unless depth is needed.`;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('userInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  input.style.height = 'auto';
+  document.getElementById('sendBtn').disabled = true;
+
+  const welcome = document.getElementById('welcome');
+  if (welcome) welcome.remove();
+
+  appendMsg('user', text);
+  const msgObj = { role: 'user', content: text };
+  state.currentSession.messages.push(msgObj);
+
+  // Auto-name session
+  if (state.currentSession.messages.length === 1) {
+    state.currentSession.name = text.slice(0, 28) + (text.length > 28 ? '…' : '');
+    renderSessions();
+  }
+
+  showThinking();
+  try {
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: getSystemPrompt(),
+      messages: state.currentSession.messages.slice(-20),
+      useWebSearch: state.tools.webSearch
+    };
+
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    const fullText = data.content?.map(b => b.text || '').join('') || 'Something went wrong.';
+
+    removeThinking();
+
+    // Check for image generation request
+    const imgMatch = fullText.match(/\[GENERATE_IMAGE:\s*(.+?)\]/);
+    if (imgMatch && state.tools.image) {
+      appendMsg('ai', fullText.replace(imgMatch[0], '').trim() || 'Generating your image...');
+      generateImage(imgMatch[1]);
+    } else {
+      appendMsg('ai', fullText);
+    }
+
+    state.currentSession.messages.push({ role: 'assistant', content: fullText });
+    saveSessions();
+
+    if (state.realtimeMode) speakText(fullText);
+  } catch (err) {
+    removeThinking();
+    appendMsg('ai', 'Connection error. Check your API key in Vercel settings.');
+  }
+  document.getElementById('sendBtn').disabled = false;
+}
+
+async function generateImage(prompt) {
+  const res = await fetch('/api/image', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+  const data = await res.json();
+  if (data.url) {
+    const chat = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'msg ai';
+    div.innerHTML = `<div class="avatar ai">A</div><div class="bubble"><img src="${data.url}" alt="Generated image" onload="document.getElementById('chatMessages').scrollTop=99999"/></div>`;
+    chat.appendChild(div);
+    chat.scrollTop = chat.scrollHeight;
+  }
+}
+
+function appendMsg(role, text, scroll = true) {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `<div class="avatar ${role === 'ai' ? 'ai' : 'user-av'}">${role === 'ai' ? (state.settings.aiName?.[0] || 'A') : 'Y'}</div><div class="bubble">${formatText(text)}</div>`;
+  chat.appendChild(div);
+  if (scroll) chat.scrollTop = chat.scrollHeight;
+}
+
+function showThinking() {
+  const chat = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'msg ai'; div.id = 'thinking';
+  div.innerHTML = `<div class="avatar ai">${state.settings.aiName?.[0] || 'A'}</div><div class="thinking"><span></span><span></span><span></span></div>`;
+  chat.appendChild(div);
+  chat.scrollTop = chat.scrollHeight;
+}
+function removeThinking() { document.getElementById('thinking')?.remove(); }
+
+function formatText(t) {
+  return t
+    .replace(/```([\s\S]*?)```/g, '<pre>$1</pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+function suggest(el) { document.getElementById('userInput').value = el.textContent; sendMessage(); }
+function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
+function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+// ─── TASK MODE ────────────────────────────────────────────
+async function runTask() {
+  const task = document.getElementById('taskInput').value.trim();
+  if (!task) return;
+  const btn = document.getElementById('runBtn');
+  btn.disabled = true; btn.textContent = '⏳ Running…';
+  const resultBox = document.getElementById('taskResult');
+  const resultContent = document.getElementById('resultContent');
+  resultBox.classList.remove('visible');
+
+  try {
+    const useSearch = document.getElementById('autoWebSearch').checked;
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: getSystemPrompt() + '\nThe user is giving you an autonomous task. Think step-by-step, do research if needed, and deliver a complete polished result.',
+      messages: [{ role: 'user', content: task }],
+      useWebSearch: useSearch
+    };
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    const text = data.content?.map(b => b.text || '').join('') || 'Error.';
+    resultContent.textContent = text;
+    resultBox.classList.add('visible');
+  } catch (e) { resultContent.textContent = 'Error: ' + e.message; resultBox.classList.add('visible'); }
+
+  btn.disabled = false; btn.textContent = '▶ Run Task';
+}
+
+// ─── DEV MODE ─────────────────────────────────────────────
+async function runDevMode() {
+  const desc = document.getElementById('devInput').value.trim();
+  if (!desc) return;
+  const btn = document.getElementById('devBtn');
+  btn.disabled = true; btn.textContent = '⏳ Generating…';
+
+  try {
+    const body = {
+      model: 'claude-sonnet-4-20250514',
+      max_tokens: 1000,
+      system: 'You are an expert web developer. The user wants to add a feature to their single-file HTML/JS/CSS AI assistant app. Write the complete code for the feature — HTML, CSS, and JS — with clear comments showing exactly where each piece goes in the file. Be precise and production-ready.',
+      messages: [{ role: 'user', content: `Add this feature to my AI assistant app: ${desc}` }]
+    };
+    const res = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const data = await res.json();
+    const code = data.content?.map(b => b.text || '').join('') || 'Error generating code.';
+    document.getElementById('devCode').textContent = code;
+    document.getElementById('devOutput').style.display = 'block';
+  } catch (e) { alert('Error: ' + e.message); }
+
+  btn.disabled = false; btn.textContent = '⚡ Generate Feature Code';
+}
+function copyDevCode() {
+  navigator.clipboard.writeText(document.getElementById('devCode').textContent);
+  alert('Code copied to clipboard!');
+}
+
+// ─── VOICE INPUT ──────────────────────────────────────────
+function toggleVoice() {
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
+    alert('Speech recognition not supported in this browser. Try Chrome.'); return;
+  }
+  const btn = document.getElementById('micBtn');
+  if (state.recording) {
+    state.recognition?.stop();
+    state.recording = false;
+    btn.classList.remove('recording');
+    return;
+  }
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  state.recognition = new SR();
+  state.recognition.continuous = false;
+  state.recognition.interimResults = false;
+  state.recognition.onresult = e => {
+    document.getElementById('userInput').value = e.results[0][0].transcript;
+    state.recording = false;
+    btn.classList.remove('recording');
+    sendMessage();
+  };
+  state.recognition.onerror = () => { state.recording = false; btn.classList.remove('recording'); };
+  state.recognition.start();
+  state.recording = true;
+  btn.classList.add('recording');
+}
+
+// ─── REAL-TIME VOICE ──────────────────────────────────────
+function toggleRealtime(btn) {
+  btn.classList.toggle('on');
+  state.realtimeMode = btn.classList.contains('on');
+  if (state.realtimeMode) alert('Real-time voice mode ON. Skynet will speak responses aloud.');
+}
+function speakText(text) {
+  const clean = text.replace(/\*\*/g, '').replace(/\[.*?\]/g, '').replace(/<[^>]+>/g, '');
+  const utt = new SpeechSynthesisUtterance(clean.slice(0, 400));
+  utt.rate = 1; utt.pitch = 1.05;
+  window.speechSynthesis.speak(utt);
+}
+
+// ─── EXPORT ───────────────────────────────────────────────
+function exportChat() {
+  if (!state.currentSession?.messages.length) return alert('Nothing to export.');
+  const text = state.currentSession.messages.map(m => `[${m.role.toUpperCase()}]\n${m.content}`).join('\n\n---\n\n');
+  download(`skynet-chat-${Date.now()}.txt`, text);
+}
+function exportTask() {
+  const text = document.getElementById('resultContent').textContent;
+  if (!text) return;
+  download(`skynet-task-${Date.now()}.txt`, text);
+}
+function download(name, content) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], { type: 'text/plain' }));
+  a.download = name; a.click();
+}
+
+// ─── STICK FIGURE ─────────────────────────────────────────
+function toggleFigureSetting(btn) {
+  btn.classList.toggle('on');
+  state.figureVisible = btn.classList.contains('on');
+  document.getElementById('skynetFigure').classList.toggle('visible', state.figureVisible);
+  state.settings.figureVisible = state.figureVisible;
+  saveSettings();
+}
+function toggleFigure() {
+  state.figureVisible = !state.figureVisible;
+  document.getElementById('skynetFigure').classList.toggle('visible', state.figureVisible);
+}
+function setAnimMode(mode) { state.animMode = mode; state.animFrame = 0; }
+
+let figOffset = 0;
+function animateFigure() {
+  state.animFrame++;
+  figOffset = state.animFrame;
+  drawFigure();
+}
+
+function drawFigure() {
+  const canvas = document.getElementById('figureCanvas');
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, 80, 120);
+
+  const t = figOffset;
+  const mode = state.animMode;
+  const gold = '#e8d5b0';
+  ctx.strokeStyle = gold;
+  ctx.lineWidth = 2.2;
+  ctx.lineCap = 'round';
+
+  // Head
+  const headY = mode === 'dance' ? 18 + Math.sin(t * 0.18) * 4 : 18;
+  ctx.beginPath();
+  ctx.arc(40, headY, 9, 0, Math.PI * 2);
+  ctx.strokeStyle = gold;
+  ctx.stroke();
+
+  // Eyes
+  ctx.fillStyle = gold;
+  const blink = (t % 60 < 3);
+  if (!blink) {
+    ctx.beginPath(); ctx.arc(37, headY - 1, 1.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(43, headY - 1, 1.5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Smile
+  ctx.beginPath();
+  ctx.arc(40, headY + 1, 4, 0.2, Math.PI - 0.2);
+  ctx.stroke();
+
+  // Body
+  const bodyTopY = headY + 9;
+  let bodyBotY = bodyTopY + 22;
+  if (mode === 'dance') bodyBotY += Math.sin(t * 0.18) * 3;
+
+  ctx.beginPath();
+  ctx.moveTo(40, bodyTopY);
+  ctx.lineTo(40, bodyBotY);
+  ctx.strokeStyle = gold;
+  ctx.stroke();
+
+  // Arms
+  let lArmX, lArmY, rArmX, rArmY;
+  const elbowY = bodyTopY + 9;
+  if (mode === 'wave') {
+    lArmX = 25; lArmY = elbowY - 2;
+    rArmX = 55 + Math.sin(t * 0.22) * 8;
+    rArmY = elbowY - 6 + Math.cos(t * 0.22) * 6;
+  } else if (mode === 'dance') {
+    lArmX = 25 + Math.sin(t * 0.2) * 8; lArmY = elbowY + Math.cos(t * 0.2) * 6;
+    rArmX = 55 - Math.sin(t * 0.2) * 8; rArmY = elbowY + Math.cos(t * 0.2) * 6;
+  } else if (mode === 'think') {
+    lArmX = 25; lArmY = elbowY;
+    rArmX = 50; rArmY = elbowY - 8;
+    // Hand on chin
+    ctx.beginPath(); ctx.arc(rArmX + 3, rArmY - 3, 3, 0, Math.PI * 2); ctx.stroke();
+  } else {
+    lArmX = 26; lArmY = elbowY + 3;
+    rArmX = 54; rArmY = elbowY + 3;
+  }
+  ctx.beginPath(); ctx.moveTo(40, bodyTopY + 5); ctx.lineTo(lArmX, lArmY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(40, bodyTopY + 5); ctx.lineTo(rArmX, rArmY); ctx.stroke();
+
+  // Legs
+  let lLegX = 30, lLegY = bodyBotY + 18;
+  let rLegX = 50, rLegY = bodyBotY + 18;
+  if (mode === 'dance') {
+    lLegX = 28 + Math.sin(t * 0.16) * 6; lLegY = bodyBotY + 16 + Math.abs(Math.cos(t * 0.16)) * 4;
+    rLegX = 52 - Math.sin(t * 0.16) * 6; rLegY = bodyBotY + 16 + Math.abs(Math.cos(t * 0.16 + Math.PI)) * 4;
+  }
+  ctx.beginPath(); ctx.moveTo(40, bodyBotY); ctx.lineTo(lLegX, lLegY); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(40, bodyBotY); ctx.lineTo(rLegX, rLegY); ctx.stroke();
+}
+
+// Drag figure
+const fig = document.getElementById('skynetFigure');
+let dragOffX = 0, dragOffY = 0, dragging = false;
+fig.addEventListener('mousedown', e => { dragging = true; dragOffX = e.clientX - fig.offsetLeft; dragOffY = e.clientY - fig.offsetTop; fig.style.cursor = 'grabbing'; });
+document.addEventListener('mousemove', e => { if (dragging) { fig.style.left = (e.clientX - dragOffX) + 'px'; fig.style.bottom = 'auto'; fig.style.top = (e.clientY - dragOffY) + 'px'; } });
+document.addEventListener('mouseup', () => { dragging = false; fig.style.cursor = 'grab'; });
+
+// ─── START ────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
